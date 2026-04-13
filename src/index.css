@@ -146,3 +146,24 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ── Water Bottle Animation ─────────────────────────────────────────────── */
+
+/* Alternating left-right nudge simulates a liquid surface ripple */
+@keyframes wba-wave {
+  0%   { transform: translateX(-8px) scaleX(1);    }
+  50%  { transform: translateX(0px)  scaleX(1.04); }
+  100% { transform: translateX(8px)  scaleX(1);    }
+}
+
+/* Wave element sits right at the top edge of the water div */
+.wba-wave-surface {
+  position: absolute;
+  top: -5px;
+  left: -12px;
+  width: calc(100% + 24px);
+  height: 10px;
+  background: rgba(147, 197, 253, 0.45);
+  border-radius: 50%;
+  animation: wba-wave 2.4s ease-in-out infinite alternate;
+}
