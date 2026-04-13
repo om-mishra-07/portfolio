@@ -19,10 +19,10 @@ export default function App() {
   return (
     <div className="relative bg-black text-white overflow-x-hidden">
       <CustomCursor />
-      <WaterBottleAnimation />
       <Navbar />
       <main>
         <Hero />
+        <WaterBottleAnimation />
         <About />
         <WhatIDo />
         <Work />
