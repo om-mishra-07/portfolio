@@ -8,6 +8,7 @@ import Experience from './components/Experience';
 import Skills from './components/Skills';
 import Contact from './components/Contact';
 import CustomCursor from './components/CustomCursor';
+import WaterBottleAnimation from './components/WaterBottleAnimation';
 
 export default function App() {
   // Smooth scrolling polyfill awareness
@@ -18,6 +19,7 @@ export default function App() {
   return (
     <div className="relative bg-black text-white overflow-x-hidden">
       <CustomCursor />
+      <WaterBottleAnimation />
       <Navbar />
       <main>
         <Hero />
