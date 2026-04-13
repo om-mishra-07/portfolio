@@ -5,84 +5,61 @@ import { useScroll, useTransform, motion } from 'framer-motion';
 const BOTTLE_PATH =
   'M 28,0 L 52,0 L 52,18 C 66,28 68,38 68,50 L 68,215 Q 68,235 40,235 Q 12,235 12,215 L 12,50 C 12,38 14,28 28,18 Z';
 
-const W = 80;   // viewBox / container width
-const H = 235;  // viewBox / container height
+const W = 80;   // viewBox width
+const H = 235;  // viewBox height
 
-// Height of the bottle body (the part that holds water)
-const BODY_HEIGHT = 165;
+// Top of the bottle body (shoulder end) — water starts here when full
+const BODY_TOP = 70;
 
 export default function WaterBottleAnimation() {
   const { scrollYProgress } = useScroll();
 
-  // Bottle drifts down, tilts, and shrinks slightly as the user scrolls
-  const y       = useTransform(scrollYProgress, [0, 1], [80, 420]);
-  const rotate  = useTransform(scrollYProgress, [0, 1], [-2, 22]);
-  const scale   = useTransform(scrollYProgress, [0, 1], [1, 0.88]);
+  // Cinematic scroll: falls down, drifts sideways, grows slightly
+  const y      = useTransform(scrollYProgress, [0, 1], [0, 1600]);
+  const x      = useTransform(scrollYProgress, [0, 0.33, 0.66, 1], [0, 100, -80, 40]);
+  const rotate = useTransform(scrollYProgress, [0, 1], [-2, 22]);
+  const scale  = useTransform(scrollYProgress, [0, 1], [1, 1.15]);
 
-  // Visible on page load, stay visible, then fade out near the very bottom
+  // Subtle background presence, fades out near the very bottom
   const opacity = useTransform(
     scrollYProgress,
     [0, 0.88, 1],
-    [0.65, 0.65, 0.05]
+    [0.25, 0.25, 0.05]
   );
 
-  // Water column height shrinks from full body to zero
-  const waterHeight = useTransform(scrollYProgress, [0, 1], [BODY_HEIGHT, 0]);
+  // Water surface translateY: BODY_TOP (full) → H (empty)
+  const waterY = useTransform(scrollYProgress, [0, 1], [BODY_TOP, H]);
 
   return (
     <motion.div
-      className="fixed right-4 md:right-14 top-0 pointer-events-none z-[1]"
-      style={{ opacity, willChange: 'opacity' }}
+      className="wba-fixed-pos fixed pointer-events-none z-[1]"
+      style={{ right: '-5%', top: '10%', opacity, willChange: 'opacity' }}
       aria-hidden="true"
     >
       <motion.div
-        style={{ y, rotate, scale, willChange: 'transform' }}
+        style={{ y, x, rotate, scale, willChange: 'transform' }}
         className="relative select-none"
       >
-        {/* ── Bottle silhouette clipped container ─────────────────────── */}
-        {/* Everything inside here (water) is clipped to the bottle shape  */}
-        <div
-          style={{
-            width: `${W}px`,
-            height: `${H}px`,
-            clipPath: `path("${BOTTLE_PATH}")`,
-            position: 'relative',
-            overflow: 'hidden',
-          }}
-        >
-          {/* Water fill — anchored at bottom, height shrinks on scroll */}
-          <motion.div
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: waterHeight,
-              background:
-                'linear-gradient(180deg, rgba(96,165,250,0.82) 0%, rgba(29,78,216,0.9) 100%)',
-              willChange: 'height',
-            }}
-          >
-            {/* Wave ripple at the water surface */}
-            <div className="wba-wave-surface" />
-          </motion.div>
-        </div>
-
-        {/* ── Glass / bottle SVG overlay ───────────────────────────────── */}
-        {/* Rendered on top of the water div to create a glass-like look   */}
+        {/* Single SVG — viewBox scales all internals automatically */}
         <svg
+          className="wba-bottle-svg"
           viewBox={`0 0 ${W} ${H}`}
-          width={W}
-          height={H}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            pointerEvents: 'none',
-            overflow: 'visible',
-          }}
+          style={{ height: '80vh', width: 'auto', maxWidth: 'none', display: 'block' }}
+          aria-hidden="true"
         >
           <defs>
-            {/* Subtle frosted-glass fill gradient */}
+            {/* Clip to bottle silhouette */}
+            <clipPath id="wba-bottle-clip">
+              <path d={BOTTLE_PATH} />
+            </clipPath>
+
+            {/* Water gradient — bright blue at bottom, deeper blue at top */}
+            <linearGradient id="wba-water-grad" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%"   stopColor="#00c6ff" />
+              <stop offset="100%" stopColor="#0072ff" />
+            </linearGradient>
+
+            {/* Subtle frosted-glass fill */}
             <linearGradient id="wba-glass" x1="0" y1="0" x2="1" y2="0">
               <stop offset="0%"   stopColor="white" stopOpacity="0.03" />
               <stop offset="20%"  stopColor="white" stopOpacity="0.10" />
@@ -90,6 +67,28 @@ export default function WaterBottleAnimation() {
               <stop offset="100%" stopColor="white" stopOpacity="0.06" />
             </linearGradient>
           </defs>
+
+          {/* Water fill — rect slides down as scroll increases, clipped to bottle */}
+          <motion.rect
+            x={0}
+            width={W}
+            height={H}
+            fill="url(#wba-water-grad)"
+            clipPath="url(#wba-bottle-clip)"
+            style={{ y: waterY }}
+          />
+
+          {/* Wave ripple at water surface */}
+          <motion.ellipse
+            cx={W / 2}
+            cy={0}
+            rx={W / 2 + 2}
+            ry={4}
+            fill="rgba(147,197,253,0.45)"
+            clipPath="url(#wba-bottle-clip)"
+            style={{ y: waterY }}
+            className="wba-wave-ellipse"
+          />
 
           {/* Frosted-glass interior fill */}
           <path d={BOTTLE_PATH} fill="url(#wba-glass)" />
@@ -123,15 +122,9 @@ export default function WaterBottleAnimation() {
             strokeWidth="1.5" strokeLinecap="round"
           />
 
-          {/* Thin horizontal label-band suggestion */}
-          <rect
-            x="14" y="95" width="52" height="0.5"
-            fill="white" fillOpacity="0.06"
-          />
-          <rect
-            x="14" y="155" width="52" height="0.5"
-            fill="white" fillOpacity="0.06"
-          />
+          {/* Thin horizontal label-band suggestions */}
+          <rect x="14" y="95"  width="52" height="0.5" fill="white" fillOpacity="0.06" />
+          <rect x="14" y="155" width="52" height="0.5" fill="white" fillOpacity="0.06" />
         </svg>
       </motion.div>
     </motion.div>
