@@ -1,50 +1,71 @@
 import { useScroll, useTransform, motion } from 'framer-motion';
 
-// Bottle shape path — coordinates within a 80 × 235 box.
-// Cap (y 0–18) → curved shoulder (y 18–50) → straight body (y 50–215) → rounded base (y 215–235)
+// Bottle shape path — coordinates within a 80 × 260 box.
+// Cap (y 0–20) → neck (y 20–40) → curved shoulder (y 40–65) → straight body (y 65–230) → rounded base (y 230–260)
 const BOTTLE_PATH =
-  'M 28,0 L 52,0 L 52,18 C 66,28 68,38 68,50 L 68,215 Q 68,235 40,235 Q 12,235 12,215 L 12,50 C 12,38 14,28 28,18 Z';
+  'M 30,0 L 50,0 L 50,20 C 50,20 54,22 55,28 L 57,40 C 64,50 67,58 67,65 L 67,230 Q 67,260 40,260 Q 13,260 13,230 L 13,65 C 13,58 16,50 23,40 L 25,28 C 26,22 30,20 30,20 Z';
 
 const W = 80;   // viewBox width
-const H = 235;  // viewBox height
+const H = 260;  // viewBox height
 
 // Top of the bottle body (shoulder end) — water starts here when full
-const BODY_TOP = 70;
+const BODY_TOP = 75;
+
+// Scroll progress keyframes for the accelerated water drain curve:
+// water empties 30 % of its depth by 30 % scroll, 75 % by 70 % scroll, then fully empty.
+const DRAIN_KEYFRAMES = [0, 0.3, 0.7, 1];
 
 export default function WaterBottleAnimation() {
   const { scrollYProgress } = useScroll();
 
-  // Cinematic scroll: falls down, drifts sideways, grows slightly
-  const y      = useTransform(scrollYProgress, [0, 1], [0, 1600]);
-  const x      = useTransform(scrollYProgress, [0, 0.33, 0.66, 1], [0, 100, -80, 40]);
-  const rotate = useTransform(scrollYProgress, [0, 1], [-2, 22]);
-  const scale  = useTransform(scrollYProgress, [0, 1], [1, 1.15]);
+  // Subtle float: small vertical drift only, bottle stays in viewport
+  const y      = useTransform(scrollYProgress, [0, 1], [-50, 50]);
+  const rotate = useTransform(scrollYProgress, [0, 1], [0, 45]);
+  const scale  = useTransform(scrollYProgress, [0, 1], [1, 1.1]);
 
-  // Subtle background presence, fades out near the very bottom
+  // Slightly more visible since centered; fades near end
   const opacity = useTransform(
     scrollYProgress,
-    [0, 0.88, 1],
-    [0.25, 0.25, 0.05]
+    [0, 0.85, 1],
+    [0.3, 0.35, 0.08]
   );
 
-  // Water surface translateY: BODY_TOP (full) → H (empty)
-  const waterY = useTransform(scrollYProgress, [0, 1], [BODY_TOP, H]);
+  // Water drains faster as rotation increases (rotation maxes at scroll=1)
+  // Use an eased curve so water drains more aggressively mid-scroll
+  const waterY = useTransform(
+    scrollYProgress,
+    DRAIN_KEYFRAMES,
+    [
+      BODY_TOP,
+      BODY_TOP + (H - BODY_TOP) * 0.3,
+      BODY_TOP + (H - BODY_TOP) * 0.75,
+      H,
+    ]
+  );
 
   return (
     <motion.div
-      className="wba-fixed-pos fixed pointer-events-none z-[1]"
-      style={{ right: '-5%', top: '10%', opacity, willChange: 'opacity' }}
+      className="wba-fixed-pos fixed pointer-events-none"
+      style={{
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        zIndex: -1,
+        opacity,
+        willChange: 'opacity',
+        filter: 'drop-shadow(0 8px 32px rgba(0,114,255,0.25)) drop-shadow(0 2px 8px rgba(0,198,255,0.15))',
+      }}
       aria-hidden="true"
     >
       <motion.div
-        style={{ y, x, rotate, scale, willChange: 'transform' }}
+        style={{ y, rotate, scale, willChange: 'transform' }}
         className="relative select-none"
       >
         {/* Single SVG — viewBox scales all internals automatically */}
         <svg
           className="wba-bottle-svg"
           viewBox={`0 0 ${W} ${H}`}
-          style={{ height: '80vh', width: 'auto', maxWidth: 'none', display: 'block' }}
+          style={{ height: '78vh', width: 'auto', maxWidth: 'none', display: 'block' }}
           aria-hidden="true"
         >
           <defs>
@@ -53,20 +74,39 @@ export default function WaterBottleAnimation() {
               <path d={BOTTLE_PATH} />
             </clipPath>
 
-            {/* Water gradient — bright blue at bottom, deeper blue at top */}
+            {/* Water gradient — bright cyan at bottom, deeper blue at top */}
             <linearGradient id="wba-water-grad" x1="0" y1="1" x2="0" y2="0">
-              <stop offset="0%"   stopColor="#00c6ff" />
-              <stop offset="100%" stopColor="#0072ff" />
+              <stop offset="0%"   stopColor="#00d4ff" />
+              <stop offset="50%"  stopColor="#0090e0" />
+              <stop offset="100%" stopColor="#0050c8" />
             </linearGradient>
 
-            {/* Subtle frosted-glass fill */}
-            <linearGradient id="wba-glass" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%"   stopColor="white" stopOpacity="0.03" />
-              <stop offset="20%"  stopColor="white" stopOpacity="0.10" />
-              <stop offset="78%"  stopColor="white" stopOpacity="0.03" />
-              <stop offset="100%" stopColor="white" stopOpacity="0.06" />
+            {/* Glass body gradient — left edge bright, center transparent, right edge dim */}
+            <linearGradient id="wba-glass-body" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%"   stopColor="white" stopOpacity="0.18" />
+              <stop offset="12%"  stopColor="white" stopOpacity="0.08" />
+              <stop offset="50%"  stopColor="white" stopOpacity="0.02" />
+              <stop offset="80%"  stopColor="white" stopOpacity="0.07" />
+              <stop offset="100%" stopColor="white" stopOpacity="0.12" />
             </linearGradient>
+
+            {/* Cap gradient */}
+            <linearGradient id="wba-cap-grad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%"   stopColor="rgba(180,220,255,0.5)" />
+              <stop offset="50%"  stopColor="rgba(220,240,255,0.7)" />
+              <stop offset="100%" stopColor="rgba(160,200,240,0.4)" />
+            </linearGradient>
+
+            {/* Inner glow at bottle bottom */}
+            <radialGradient id="wba-bottom-glow" cx="50%" cy="90%" r="50%">
+              <stop offset="0%"   stopColor="#00c6ff" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#00c6ff" stopOpacity="0" />
+            </radialGradient>
           </defs>
+
+          {/* Bottom ambient glow */}
+          <ellipse cx={W / 2} cy={H - 15} rx={28} ry={10}
+            fill="url(#wba-bottom-glow)" clipPath="url(#wba-bottle-clip)" />
 
           {/* Water fill — rect slides down as scroll increases, clipped to bottle */}
           <motion.rect
@@ -83,48 +123,55 @@ export default function WaterBottleAnimation() {
             cx={W / 2}
             cy={0}
             rx={W / 2 + 2}
-            ry={4}
-            fill="rgba(147,197,253,0.45)"
+            ry={5}
+            fill="rgba(147,220,255,0.5)"
             clipPath="url(#wba-bottle-clip)"
             style={{ y: waterY }}
             className="wba-wave-ellipse"
           />
 
-          {/* Frosted-glass interior fill */}
-          <path d={BOTTLE_PATH} fill="url(#wba-glass)" />
+          {/* Bottle glass body fill */}
+          <path d={BOTTLE_PATH} fill="url(#wba-glass-body)" />
 
-          {/* Bottle outline */}
+          {/* Cap fill */}
+          <path
+            d="M 30,0 L 50,0 L 50,20 C 50,20 30,20 30,20 Z"
+            fill="url(#wba-cap-grad)"
+          />
+
+          {/* Bottle outline — crisp glass edge */}
           <path
             d={BOTTLE_PATH}
             fill="none"
-            stroke="rgba(255,255,255,0.18)"
+            stroke="rgba(200,230,255,0.22)"
             strokeWidth="1"
           />
 
-          {/* Left-edge light scatter */}
-          <line
-            x1="19" y1="55" x2="19" y2="200"
-            stroke="white" strokeOpacity="0.07"
-            strokeWidth="3" strokeLinecap="round"
+          {/* Primary specular highlight — wide left streak */}
+          <line x1="21" y1="68" x2="21" y2="215"
+            stroke="white" strokeOpacity="0.22" strokeWidth="3.5" strokeLinecap="round" />
+
+          {/* Secondary specular highlight — narrow bright inner streak */}
+          <line x1="25" y1="80" x2="25" y2="160"
+            stroke="white" strokeOpacity="0.14" strokeWidth="1.5" strokeLinecap="round" />
+
+          {/* Right-side edge reflection */}
+          <line x1="61" y1="68" x2="61" y2="210"
+            stroke="white" strokeOpacity="0.10" strokeWidth="2" strokeLinecap="round" />
+
+          {/* Shoulder highlight arc */}
+          <path
+            d="M 24,42 C 28,36 52,36 56,42"
+            fill="none" stroke="white" strokeOpacity="0.18" strokeWidth="1.5" strokeLinecap="round"
           />
 
-          {/* Right primary specular highlight */}
-          <line
-            x1="60" y1="55" x2="60" y2="195"
-            stroke="white" strokeOpacity="0.13"
-            strokeWidth="2" strokeLinecap="round"
-          />
-
-          {/* Narrow secondary highlight */}
-          <line
-            x1="63" y1="72" x2="63" y2="138"
-            stroke="white" strokeOpacity="0.06"
-            strokeWidth="1.5" strokeLinecap="round"
-          />
+          {/* Neck highlight */}
+          <line x1="32" y1="22" x2="32" y2="38"
+            stroke="white" strokeOpacity="0.20" strokeWidth="2" strokeLinecap="round" />
 
           {/* Thin horizontal label-band suggestions */}
-          <rect x="14" y="95"  width="52" height="0.5" fill="white" fillOpacity="0.06" />
-          <rect x="14" y="155" width="52" height="0.5" fill="white" fillOpacity="0.06" />
+          <rect x="15" y="105" width="50" height="0.6" fill="white" fillOpacity="0.08" />
+          <rect x="15" y="170" width="50" height="0.6" fill="white" fillOpacity="0.08" />
         </svg>
       </motion.div>
     </motion.div>
