@@ -19,11 +19,11 @@ export default function WaterBottleAnimation() {
   const rotate  = useTransform(scrollYProgress, [0, 1], [-2, 22]);
   const scale   = useTransform(scrollYProgress, [0, 1], [1, 0.88]);
 
-  // Fade in quickly, stay visible, then fade out near the very bottom
+  // Visible on page load, stay visible, then fade out near the very bottom
   const opacity = useTransform(
     scrollYProgress,
-    [0, 0.06, 0.88, 1],
-    [0, 0.22, 0.22, 0.05]
+    [0, 0.88, 1],
+    [0.65, 0.65, 0.05]
   );
 
   // Water column height shrinks from full body to zero
